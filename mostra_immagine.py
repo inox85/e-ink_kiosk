@@ -7,10 +7,12 @@ import requests
 
 
 # ── Configurazione ────────────────────────────────────────────
-MODELLO        = "epd7in5b_V2"                               # modello display
-IMMAGINE_BLACK = os.path.expanduser("~/immagine_black.png")  # buffer nero
-IMMAGINE_RED   = os.path.expanduser("~/immagine_red.png")    # buffer rosso (opzionale)
-LIB_PATH       = os.path.expanduser("~/e-Paper/RaspberryPi_JetsonNano/python/lib")
+MODELLO         = "epd7in5b_V2"                               # modello display
+IMMAGINE_BLACK  = os.path.expanduser("~/e-ink_kiosk/images/immagine_black.png")  # buffer nero
+IMMAGINE_RED    = os.path.expanduser("~/e-ink_kiosk/images/immagine_red.png")    # buffer rosso (opzionale)
+LIB_PATH        = os.path.expanduser("~/e-ink_kiosk/e-Paper/RaspberryPi_JetsonNano/python/lib")
+IMG_SOURCE_LINK = "https://www.fotografofirenze.it/cartelloportawd/show.php"
+LOG_LINK        = "https://www.fotografofirenze.it/cartelloportawd/catch_log.php"
 # ─────────────────────────────────────────────────────────────
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -51,25 +53,51 @@ def prepara_immagine(img_path, width, height, nome="immagine"):
     log.info(f"  Convertita in bianco/nero.")
     return img
 
+def web_log(status, msg):
+    url = LOG_LINK
+    requests.get(url, params={
+        "device": "rpi_porta",
+        "status": status,
+        "msg": msg
+    })
+
 def main():
     # Carica il modulo del display
-    url = "https://www.fotografofirenze.it/cartelloportawd/wd_cartello_black.png"
+    #url = "https://www.fotografofirenze.it/cartelloportawd/wd_cartello_black.png"
+
+    url = IMG_SOURCE_LINK
     response = requests.get(url)
-    with open("/home/inox/immagine_black.png", "wb") as f:
+    print(response.text)
+    data = response.json()
+
+    print(data["black"])
+    print(data["red"])
+        
+    response = requests.get(data["black"])
+
+    web_log("ok", "Black image downloaded")
+    
+    with open(IMMAGINE_BLACK, "wb") as f:
         f.write(response.content)
 
-    url = "https://www.fotografofirenze.it/cartelloportawd/wd_cartello_red.png"
-    response = requests.get(url)
-    with open("/home/inox/immagine_red.png", "wb") as f:
+    response = requests.get(data["red"])
+
+    web_log("ok", "Red image downloaded")
+
+    with open(IMMAGINE_RED, "wb") as f:
         f.write(response.content)
-        
+    
     epd_mod = carica_modulo(MODELLO)
     epd = epd_mod.EPD()
     log.info(f"Risoluzione display: {epd.width}x{epd.height}")
 
+    web_log("ok", "Resolution ok")
+
     # Inizializza e pulisce il display
     log.info("Inizializzazione display...")
     epd.init()
+
+    web_log("ok", "Display init ok")
     #log.info("Pulizia display (potrebbe richiedere qualche secondo)...")
     #epd.Clear()
 
@@ -100,6 +128,8 @@ def main():
         epd.display(epd.getbuffer(img_black))
 
     log.info("✓ Immagine visualizzata!")
+
+    web_log("ok", "Image correctly shown!")
 
     # Metti il display in sleep per preservarlo
     log.info("Display in sleep.")
