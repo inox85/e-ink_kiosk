@@ -76,7 +76,7 @@ def main():
     print(data["black"])
     print(data["red"])
 
-    with open(actual_images.json, w, encoding="utf-8") as file:
+    with open("actual_images.json", w, encoding="utf-8") as file:
         json.dump(response.text, file, indent=2)
         
     black_image = requests.get(data["black"])
