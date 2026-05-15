@@ -83,7 +83,7 @@ def main():
     actual_red = ""
 
     with open("actual_images.json", "r", encoding="utf-8") as file:
-        j = json.loads(file)
+        j = json.load(file)
         actual_black = j["black"] 
         actual_red = j["red"]
        
