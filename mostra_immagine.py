@@ -68,24 +68,30 @@ def main():
     url = IMG_SOURCE_LINK
     response = requests.get(url)
     print(response.text)
+
+
+
     data = response.json()
 
     print(data["black"])
     print(data["red"])
+
+    with open(actual_images.json, w, encoding="utf-8") as file:
+        json.dump(response.text, file, indent=2)
         
-    response = requests.get(data["black"])
+    black_image = requests.get(data["black"])
 
     web_log("ok", "Black image downloaded")
     
     with open(IMMAGINE_BLACK, "wb") as f:
-        f.write(response.content)
+        f.write(black_image.content)
 
-    response = requests.get(data["red"])
+    red_image = requests.get(data["red"])
 
     web_log("ok", "Red image downloaded")
 
     with open(IMMAGINE_RED, "wb") as f:
-        f.write(response.content)
+        f.write(red_image.content)
     
     epd_mod = carica_modulo(MODELLO)
     epd = epd_mod.EPD()
