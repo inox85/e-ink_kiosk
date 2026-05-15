@@ -65,82 +65,97 @@ def web_log(status, msg):
 def main():
     # Carica il modulo del display
     #url = "https://www.fotografofirenze.it/cartelloportawd/wd_cartello_black.png"
+    log.info("Begin...")
 
     url = IMG_SOURCE_LINK
     response = requests.get(url)
     print(response.text)
-
-
 
     data = response.json()
 
     print(data["black"])
     print(data["red"])
 
-    with open("actual_images.json", "w", encoding="utf-8") as file:
-        json.dump(response.text, file, indent=2)
+    new_black = data["black"] 
+    new_red = data["red"]
+
+    actual_black = "" 
+    actual_red = ""
+
+    with open("actual_images.json", "r", encoding="utf-8") as file:
+        j = json.loads(file)
+        actual_black = j["black"] 
+        actual_red = j["red"]
+       
+    if actual_black != new_black or actual_red != new_red:
+
+        with open("actual_images.json", "w", encoding="utf-8") as file:
+            json.dump(response.text, file, indent=2)
+            
+        black_image = requests.get(data["black"])
+
+        web_log("ok", "Black image downloaded")
         
-    black_image = requests.get(data["black"])
+        with open(IMMAGINE_BLACK, "wb") as f:
+            f.write(black_image.content)
 
-    web_log("ok", "Black image downloaded")
-    
-    with open(IMMAGINE_BLACK, "wb") as f:
-        f.write(black_image.content)
+        red_image = requests.get(data["red"])
 
-    red_image = requests.get(data["red"])
+        web_log("ok", "Red image downloaded")
 
-    web_log("ok", "Red image downloaded")
+        with open(IMMAGINE_RED, "wb") as f:
+            f.write(red_image.content)
+        
+        epd_mod = carica_modulo(MODELLO)
+        epd = epd_mod.EPD()
+        log.info(f"Risoluzione display: {epd.width}x{epd.height}")
 
-    with open(IMMAGINE_RED, "wb") as f:
-        f.write(red_image.content)
-    
-    epd_mod = carica_modulo(MODELLO)
-    epd = epd_mod.EPD()
-    log.info(f"Risoluzione display: {epd.width}x{epd.height}")
+        web_log("ok", "Resolution ok")
 
-    web_log("ok", "Resolution ok")
+        # Inizializza e pulisce il display
+        log.info("Inizializzazione display...")
+        epd.init()
 
-    # Inizializza e pulisce il display
-    log.info("Inizializzazione display...")
-    epd.init()
+        web_log("ok", "Display init ok")
+        #log.info("Pulizia display (potrebbe richiedere qualche secondo)...")
+        #epd.Clear()
 
-    web_log("ok", "Display init ok")
-    #log.info("Pulizia display (potrebbe richiedere qualche secondo)...")
-    #epd.Clear()
+        # ── Prepara buffer NERO ───────────────────────────────────
+        img_black = prepara_immagine(IMMAGINE_BLACK, epd.width, epd.height, "buffer nero")
+        if img_black is None:
+            log.error(f"Immagine nera non trovata: {IMMAGINE_BLACK}")
+            log.error("Copia l'immagine con: scp immagine_black.png inox@raspberrypi.local:~/")
+            sys.exit(1)
 
-    # ── Prepara buffer NERO ───────────────────────────────────
-    img_black = prepara_immagine(IMMAGINE_BLACK, epd.width, epd.height, "buffer nero")
-    if img_black is None:
-        log.error(f"Immagine nera non trovata: {IMMAGINE_BLACK}")
-        log.error("Copia l'immagine con: scp immagine_black.png inox@raspberrypi.local:~/")
-        sys.exit(1)
+        # ── Prepara buffer ROSSO ──────────────────────────────────
+        img_red = prepara_immagine(IMMAGINE_RED, epd.width, epd.height, "buffer rosso")
+        if img_red is None:
+            log.info(f"Immagine rossa non trovata: {IMMAGINE_RED} → uso buffer rosso vuoto.")
+            img_red = Image.new('1', (epd.width, epd.height), 255)  # bianco = niente rosso
 
-    # ── Prepara buffer ROSSO ──────────────────────────────────
-    img_red = prepara_immagine(IMMAGINE_RED, epd.width, epd.height, "buffer rosso")
-    if img_red is None:
-        log.info(f"Immagine rossa non trovata: {IMMAGINE_RED} → uso buffer rosso vuoto.")
-        img_red = Image.new('1', (epd.width, epd.height), 255)  # bianco = niente rosso
+        # ── Invia al display ──────────────────────────────────────
+        import inspect
+        sig = inspect.signature(epd.display)
+        num_params = len(sig.parameters)
 
-    # ── Invia al display ──────────────────────────────────────
-    import inspect
-    sig = inspect.signature(epd.display)
-    num_params = len(sig.parameters)
+        log.info("Invio immagine al display...")
+        if num_params >= 2:
+            log.info("Display a 3 colori: invio buffer nero + rosso...")
+            epd.display(epd.getbuffer(img_black), epd.getbuffer(img_red))
+        else:
+            log.info("Display a 2 colori: invio solo buffer nero...")
+            epd.display(epd.getbuffer(img_black))
 
-    log.info("Invio immagine al display...")
-    if num_params >= 2:
-        log.info("Display a 3 colori: invio buffer nero + rosso...")
-        epd.display(epd.getbuffer(img_black), epd.getbuffer(img_red))
+        log.info("✓ Immagine visualizzata!")
+
+        web_log("ok", "Image correctly shown!")
+
+        # Metti il display in sleep per preservarlo
+        log.info("Display in sleep.")
+        epd.sleep()
+
     else:
-        log.info("Display a 2 colori: invio solo buffer nero...")
-        epd.display(epd.getbuffer(img_black))
-
-    log.info("✓ Immagine visualizzata!")
-
-    web_log("ok", "Image correctly shown!")
-
-    # Metti il display in sleep per preservarlo
-    log.info("Display in sleep.")
-    epd.sleep()
+        log.info("Image already updated!")
 
 if __name__ == "__main__":
     main()
