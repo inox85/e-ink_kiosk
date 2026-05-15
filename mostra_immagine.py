@@ -82,14 +82,26 @@ def main():
     actual_black = "" 
     actual_red = ""
 
-    with open("actual_images.json", "r", encoding="utf-8") as file:
-        j = json.loads(file.read())
-        print(j)
-        actual_black = j["black"] 
-        actual_red = j["red"]
+    update_needed = False
+    
+    try:
+        with open("actual_images.json", "r", encoding="utf-8") as file:
+            j = json.loads(file.read())
+            j = json.loads(j)         
+            actual_black = j["black"] 
+            actual_red = j["red"]
+            print("Immagine nera in arrivo:", new_black )
+            print("Immagine rossa in arrivo:", new_red )
+            print("Immagine nera attuale:", actual_black)
+            print("Immagine rossa attuale:", actual_red)
+        update_needed = actual_black != new_black or actual_red != new_red
+        print("Aggiornamento immagine richiesto: " + str(update_needed))
+    except Exception as ex:
+        print("Eccezione generata: " + str(ex))
+        update_needed = True
        
-    if actual_black != new_black or actual_red != new_red:
-
+    if update_needed:
+        print("Cambio immagina in corso...")
         with open("actual_images.json", "w", encoding="utf-8") as file:
             json.dump(response.text, file, indent=2)
             
